@@ -10,8 +10,9 @@ use model::Task;
 use storage::TaskStorage;
 
 #[derive(Deserialize, Serialize)]
-struct TaskIdParam {
-    id: Uuid,
+struct CreateTaskRequest {
+    title: String,
+    description: Option<String>,
 }
 
 async fn get_tasks(storage: web::Data<TaskStorage>) -> impl Responder {
@@ -23,9 +24,11 @@ async fn get_tasks(storage: web::Data<TaskStorage>) -> impl Responder {
 
 async fn create_task(
     storage: web::Data<TaskStorage>,
-    task_data: web::Json<Task>,
+    task_data: web::Json<CreateTaskRequest>,
 ) -> impl Responder {
-    let task = task_data.into_inner();
+    // Use Task::new method to create the task
+    let task = Task::new(task_data.title.clone(), task_data.description.clone());
+
     match storage.add_task(task) {
         Ok(_) => HttpResponse::Created().finish(),
         Err(_) => HttpResponse::InternalServerError().body("Не вдалося створити завдання"),
