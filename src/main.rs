@@ -1,8 +1,7 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use actix_files as fs;
-use serde_json;
-use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 mod model;
 mod storage;
@@ -46,9 +45,10 @@ async fn update_task(
 
 async fn delete_task(
     storage: web::Data<TaskStorage>,
-    web::Path(param): web::Path<TaskIdParam>,
+    path: web::Path<Uuid>,
 ) -> impl Responder {
-    match storage.delete_task(param.id) {
+    let task_id = path.into_inner();
+    match storage.delete_task(task_id) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(_) => HttpResponse::InternalServerError().body("Не вдалося видалити завдання"),
     }
