@@ -110,12 +110,8 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: crypto.randomUUID(),
                 title,
-                description: description || null,
-                completed: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                description: description || null
             })
         });
 
