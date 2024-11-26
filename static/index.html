@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Todo Додаток</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .task-container { max-width: 600px; margin: 2rem auto; }
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .completed {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+<div class="container task-container">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0 text-center">Список Завдань</h2>
+        </div>
+        <div class="card-body">
+            <div class="input-group mb-3">
+                <input type="text" id="taskTitle" class="form-control" placeholder="Назва завдання" required>
+                <button class="btn btn-success" onclick="addTask()">
+                    <i class="bi bi-plus-lg"></i> Додати
+                </button>
+            </div>
+            <textarea id="taskDescription" class="form-control mb-3" placeholder="Опис завдання (необов'язково)"></textarea>
+
+            <div id="taskList" class="mt-3">
+                <!-- Tasks will be dynamically added here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS and Popper.js -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+<script>
+    async function loadTasks() {
+        const response = await fetch('/tasks');
+        const tasks = await response.json();
+        const taskList = document.getElementById('taskList');
+        taskList.innerHTML = '';
+
+        if (tasks.length === 0) {
+            taskList.innerHTML = `
+                    <div class="alert alert-info text-center" role="alert">
+                        Немає жодних завдань. Додайте нове завдання!
+                    </div>
+                `;
+            return;
+        }
+
+        tasks.forEach(task => {
+            const taskElement = document.createElement('div');
+            taskElement.classList.add('task-item');
+            taskElement.innerHTML = `
+                    <div class="flex-grow-1 ${task.completed ? 'completed' : ''}">
+                        <strong>${task.title}</strong>
+                        ${task.description ? `<p class="text-muted mb-0 small">${task.description}</p>` : ''}
+                    </div>
+                    <div class="btn-group" role="group">
+                        <button
+                            onclick="toggleTask('${task.id}', ${task.completed})"
+                            class="btn btn-sm ${task.completed ? 'btn-warning' : 'btn-success'}"
+                        >
+                            <i class="bi ${task.completed ? 'bi-arrow-counterclockwise' : 'bi-check-lg'}"></i>
+                        </button>
+                        <button
+                            onclick="deleteTask('${task.id}')"
+                            class="btn btn-sm btn-danger"
+                        >
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+            taskList.appendChild(taskElement);
+        });
+    }
+
+    async function addTask() {
+        const titleInput = document.getElementById('taskTitle');
+        const descriptionInput = document.getElementById('taskDescription');
+        const title = titleInput.value.trim();
+        const description = descriptionInput.value.trim();
+
+        if (!title) {
+            alert('Будь ласка, введіть назву завдання');
+            return;
+        }
+
+        await fetch('/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: crypto.randomUUID(),
+                title,
+                description: description || null,
+                completed: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+        });
+
+        titleInput.value = '';
+        descriptionInput.value = '';
+        loadTasks();
+    }
+
+    async function toggleTask(id, currentState) {
+        await fetch('/tasks', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id,
+                completed: !currentState
+            })
+        });
+        loadTasks();
+    }
+
+    async function deleteTask(id) {
+        const confirmDelete = confirm('Ви впевнені, що хочете видалити це завдання?');
+        if (confirmDelete) {
+            await fetch(`/tasks/${id}`, { method: 'DELETE' });
+            loadTasks();
+        }
+    }
+
+    // Load tasks when page loads
+    loadTasks();
+</script>
+</body>
+</html>
