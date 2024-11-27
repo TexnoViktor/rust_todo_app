@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <title>Todo List</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .task-completed {
+            text-decoration: line-through;
+            color: gray;
+        }
+        .task-time {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+    </style>
 </head>
 <body>
 <div class="container mt-5">
@@ -46,6 +56,18 @@
         const taskForm = document.getElementById('taskForm');
         const taskList = document.getElementById('taskList');
 
+        // Форматування дати та часу
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('uk-UA', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
         // Функція завантаження завдань
         async function loadTasks() {
             const response = await fetch('/api/tasks');
@@ -58,21 +80,39 @@
         // Функція рендерингу завдання
         function renderTask(task) {
             const listItem = document.createElement('li');
-            listItem.className = `list-group-item d-flex justify-content-between align-items-center ${task.completed ? 'list-group-item-success' : ''}`;
-            listItem.innerHTML = `
-                    <div>
-                        <h5 class="mb-1">${task.title}</h5>
-                        <p class="small text-muted">${task.description || ''}</p>
-                    </div>
-                    <div>
-                        <button class="btn btn-sm btn-success me-2 complete-task" data-id="${task.id}">
-                            ${task.completed ? 'Виконано' : 'Виконати'}
-                        </button>
-                        <button class="btn btn-sm btn-danger delete-task" data-id="${task.id}">
-                            Видалити
-                        </button>
-                    </div>
+            listItem.className = `list-group-item d-flex justify-content-between align-items-start ${task.completed ? 'list-group-item-success' : ''}`;
+
+            const titleElement = document.createElement('div');
+            titleElement.className = 'd-flex flex-column';
+
+            const titleText = document.createElement('h5');
+            titleText.className = `mb-1 ${task.completed ? 'task-completed' : ''}`;
+            titleText.textContent = task.title;
+
+            const descriptionText = document.createElement('p');
+            descriptionText.className = `small text-muted ${task.completed ? 'task-completed' : ''}`;
+            descriptionText.textContent = task.description || '';
+
+            const timeText = document.createElement('span');
+            timeText.className = 'task-time';
+            timeText.textContent = `Створено: ${formatDateTime(task.created_at)}`;
+
+            titleElement.appendChild(titleText);
+            titleElement.appendChild(descriptionText);
+            titleElement.appendChild(timeText);
+
+            const actionButtons = document.createElement('div');
+            actionButtons.innerHTML = `
+                    <button class="btn btn-sm btn-success me-2 complete-task" data-id="${task.id}">
+                        ${task.completed ? 'Не виконано' : 'Виконати'}
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-task" data-id="${task.id}">
+                        Видалити
+                    </button>
                 `;
+
+            listItem.appendChild(titleElement);
+            listItem.appendChild(actionButtons);
             taskList.appendChild(listItem);
         }
 
@@ -81,6 +121,7 @@
             e.preventDefault();
             const title = document.getElementById('taskTitle').value;
             const description = document.getElementById('taskDescription').value;
+            const now = new Date().toISOString();
 
             const response = await fetch('/api/tasks', {
                 method: 'POST',
@@ -92,8 +133,8 @@
                     description: description || null,
                     completed: false,
                     id: crypto.randomUUID(),
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    created_at: now,
+                    updated_at: now
                 })
             });
 
@@ -116,11 +157,14 @@
         taskList.addEventListener('click', async (e) => {
             if (e.target.classList.contains('complete-task')) {
                 const taskId = e.target.dataset.id;
-                const tasks = await loadTasks();
+                const response = await fetch('/api/tasks');
+                const tasks = await response.json();
                 const task = tasks.find(t => t.id === taskId);
 
                 if (task) {
                     task.completed = !task.completed;
+                    task.updated_at = new Date().toISOString();
+
                     await fetch(`/api/tasks/${taskId}`, {
                         method: 'PUT',
                         headers: {
