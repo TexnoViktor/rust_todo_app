@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use serde_json;
 use uuid::Uuid;
-use crate::model::Task;
+use crate::models::Task;
 
 pub struct TaskStorage {
     file_path: String,
@@ -15,7 +15,7 @@ impl TaskStorage {
         }
     }
 
-    pub fn save_tasks(&self, tasks: &[Task]) -> Result<(), std::io::Error> {
+    pub fn save_tasks(&self, tasks: &Vec<Task>) -> Result<(), std::io::Error> {
         let json = serde_json::to_string_pretty(tasks)?;
         fs::write(&self.file_path, json)
     }
@@ -25,8 +25,8 @@ impl TaskStorage {
             return Ok(Vec::new());
         }
 
-        let contents = fs::read_to_string(&self.file_path)?;
-        let tasks: Vec<Task> = serde_json::from_str(&contents)?;
+        let json_content = fs::read_to_string(&self.file_path)?;
+        let tasks: Vec<Task> = serde_json::from_str(&json_content)?;
         Ok(tasks)
     }
 
@@ -36,17 +36,17 @@ impl TaskStorage {
         self.save_tasks(&tasks)
     }
 
+    pub fn remove_task(&self, task_id: Uuid) -> Result<(), std::io::Error> {
+        let mut tasks = self.load_tasks()?;
+        tasks.retain(|t| t.id != task_id);
+        self.save_tasks(&tasks)
+    }
+
     pub fn update_task(&self, task_id: Uuid, updated_task: Task) -> Result<(), std::io::Error> {
         let mut tasks = self.load_tasks()?;
         if let Some(task) = tasks.iter_mut().find(|t| t.id == task_id) {
             *task = updated_task;
         }
-        self.save_tasks(&tasks)
-    }
-
-    pub fn delete_task(&self, task_id: Uuid) -> Result<(), std::io::Error> {
-        let mut tasks = self.load_tasks()?;
-        tasks.retain(|task| task.id != task_id);
         self.save_tasks(&tasks)
     }
 }

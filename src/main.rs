@@ -1,76 +1,27 @@
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use actix_files as fs;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+#[macro_use] extern crate rocket;
 
-mod model;
+mod models;
 mod storage;
+mod routes;
 
-use model::Task;
-use storage::TaskStorage;
+use rocket::fs::{FileServer, relative};
+use crate::storage::TaskStorage;
 
-#[derive(Deserialize, Serialize)]
-struct CreateTaskRequest {
-    title: String,
-    description: Option<String>,
-}
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
+    let storage = TaskStorage::new("tasks.json");
 
-async fn get_tasks(storage: web::Data<TaskStorage>) -> impl Responder {
-    match storage.load_tasks() {
-        Ok(tasks) => HttpResponse::Ok().json(tasks),
-        Err(_) => HttpResponse::InternalServerError().body("Не вдалося завантажити завдання"),
-    }
-}
+    rocket::build()
+        .manage(storage)
+        .mount("/", FileServer::from(relative!("static")))
+        .mount("/api", routes![
+            routes::get_tasks,
+            routes::create_task,
+            routes::update_task,
+            routes::delete_task
+        ])
+        .launch()
+        .await?;
 
-async fn create_task(
-    storage: web::Data<TaskStorage>,
-    task_data: web::Json<CreateTaskRequest>,
-) -> impl Responder {
-    // Use Task::new method to create the task
-    let task = Task::new(task_data.title.clone(), task_data.description.clone());
-
-    match storage.add_task(task) {
-        Ok(_) => HttpResponse::Created().finish(),
-        Err(_) => HttpResponse::InternalServerError().body("Не вдалося створити завдання"),
-    }
-}
-
-async fn update_task(
-    storage: web::Data<TaskStorage>,
-    task_data: web::Json<Task>,
-) -> impl Responder {
-    let task = task_data.into_inner();
-    match storage.update_task(task.id, task) {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::InternalServerError().body("Не вдалося оновити завдання"),
-    }
-}
-
-async fn delete_task(
-    storage: web::Data<TaskStorage>,
-    path: web::Path<Uuid>,
-) -> impl Responder {
-    let task_id = path.into_inner();
-    match storage.delete_task(task_id) {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::InternalServerError().body("Не вдалося видалити завдання"),
-    }
-}
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    let storage = web::Data::new(TaskStorage::new("tasks.json"));
-
-    HttpServer::new(move || {
-        App::new()
-            .app_data(storage.clone())
-            .service(fs::Files::new("/", "./static").index_file("index.html"))
-            .route("/tasks", web::get().to(get_tasks))
-            .route("/tasks", web::post().to(create_task))
-            .route("/tasks", web::put().to(update_task))
-            .route("/tasks/{id}", web::delete().to(delete_task))
-    })
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+    Ok(())
 }

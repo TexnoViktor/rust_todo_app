@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
@@ -23,5 +23,20 @@ impl Task {
             created_at: now,
             updated_at: now,
         }
+    }
+
+    pub fn mark_completed(&mut self) {
+        self.completed = true;
+        self.updated_at = Utc::now();
+    }
+
+    pub fn update(&mut self, title: Option<String>, description: Option<String>) {
+        if let Some(new_title) = title {
+            self.title = new_title;
+        }
+        if let Some(new_desc) = description {
+            self.description = Option::from(new_desc);
+        }
+        self.updated_at = Utc::now();
     }
 }
