@@ -18,7 +18,9 @@ async fn main() -> Result<(), rocket::Error> {
             routes::get_tasks,
             routes::create_task,
             routes::update_task,
-            routes::delete_task
+            routes::delete_task,
+            routes::export_tasks,
+            routes::import_tasks
         ])
         .launch()
         .await?;

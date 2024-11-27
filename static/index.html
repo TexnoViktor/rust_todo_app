@@ -21,7 +21,7 @@
 
     <div class="row">
         <div class="col-md-4">
-            <div class="card">
+            <div class="card mb-3">
                 <div class="card-header">
                     Нове завдання
                 </div>
@@ -35,6 +35,25 @@
                         </div>
                         <button type="submit" class="btn btn-primary w-100">Додати завдання</button>
                     </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    Управління списком
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button id="exportTasks" class="btn btn-success">
+                            Експорт списку завдань
+                        </button>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="importTasksFile" accept=".json">
+                            <button id="importTasks" class="btn btn-warning">
+                                Імпорт списку завдань
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -55,6 +74,10 @@
     document.addEventListener('DOMContentLoaded', () => {
         const taskForm = document.getElementById('taskForm');
         const taskList = document.getElementById('taskList');
+        const exportButton = document.getElementById('exportTasks');
+        const importButton = document.getElementById('importTasks');
+        const importFileInput = document.getElementById('importTasksFile');
+
 
         // Форматування дати та часу
         function formatDateTime(dateString) {
@@ -174,6 +197,61 @@
                     });
                     loadTasks();
                 }
+            }
+        });
+
+        // Експорт списку завдань
+        exportButton.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+
+                // Створення посилання для завантаження
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tasks_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Помилка експорту:', error);
+                alert('Не вдалося експортувати завдання');
+            }
+        });
+
+        // Імпорт списку завдань
+        importButton.addEventListener('click', async () => {
+            const file = importFileInput.files[0];
+            if (!file) {
+                alert('Виберіть файл для імпорту');
+                return;
+            }
+
+            try {
+                // Зчитуємо вміст файлу
+                const fileContent = await file.text();
+                const tasks = JSON.parse(fileContent);
+
+                // Надсилаємо завдання на сервер
+                const response = await fetch('/api/import', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(tasks)
+                });
+
+                if (response.ok) {
+                    alert('Список завдань успішно імпортовано');
+                    loadTasks();
+                    importFileInput.value = ''; // Очищення поля вибору файлу
+                } else {
+                    alert('Не вдалося імпортувати завдання. Перевірте формат файлу.');
+                }
+            } catch (error) {
+                console.error('Помилка імпорту:', error);
+                alert('Помилка імпорту завдань. Перевірте формат JSON.');
             }
         });
 
